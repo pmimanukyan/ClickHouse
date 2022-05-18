@@ -306,7 +306,6 @@ void MergeTreeRangeReader::ReadResult::adjustLastGranule()
 void MergeTreeRangeReader::ReadResult::clear()
 {
     /// Need to save information about the number of granules.
-    num_rows_to_skip_in_last_granule += rows_per_granule.back();
     rows_per_granule.assign(rows_per_granule.size(), 0);
     total_rows_per_granule = 0;
     filter_holder = nullptr;
@@ -350,6 +349,7 @@ void MergeTreeRangeReader::ReadResult::setFilterConstFalse()
     num_rows = 0;
 }
 
+///
 void MergeTreeRangeReader::ReadResult::optimize(bool can_read_incomplete_granules, bool allow_filter_columns)
 {
     if (total_rows_per_granule == 0 || filter == nullptr)
@@ -376,7 +376,6 @@ void MergeTreeRangeReader::ReadResult::optimize(bool can_read_incomplete_granule
             rows_per_granule_original.push_back(rows_per_granule[i]);
             rows_per_granule[i] -= zero_tails[i];
         }
-        num_rows_to_skip_in_last_granule += rows_per_granule_original.back() - rows_per_granule.back();
 
         filter_original = filter;
         filter_holder_original = std::move(filter_holder);
@@ -407,6 +406,7 @@ void MergeTreeRangeReader::ReadResult::optimize(bool can_read_incomplete_granule
         need_filter = true;
 }
 
+/// For each read granule
 size_t MergeTreeRangeReader::ReadResult::countZeroTails(const IColumn::Filter & filter_vec, NumRows & zero_tails, bool can_read_incomplete_granules) const
 {
     zero_tails.resize(0);
@@ -486,6 +486,7 @@ size_t MergeTreeRangeReader::ReadResult::numZerosInTail(const UInt8 * begin, con
     return count;
 }
 
+/// Filter size must match total_rows_per_granule
 void MergeTreeRangeReader::ReadResult::setFilter(const ColumnPtr & new_filter)
 {
     if (!new_filter && filter)
@@ -565,8 +566,8 @@ MergeTreeRangeReader::MergeTreeRangeReader(
     if (prewhere_info)
     {
         if (prewhere_info->alias_actions)
-            throw Exception("FOUND NON-EMPTY alias_actions: " + prewhere_info->alias_actions->dumpActions(), ErrorCodes::NOT_IMPLEMENTED);
-//            prewhere_info->alias_actions->execute(sample_block, true);
+//            throw Exception("FOUND NON-EMPTY alias_actions: " + prewhere_info->alias_actions->dumpActions(), ErrorCodes::NOT_IMPLEMENTED);
+            prewhere_info->alias_actions->execute(sample_block, true);
 
         if (prewhere_info->row_level_filter)
         {
@@ -912,11 +913,10 @@ Columns MergeTreeRangeReader::continueReadingChain(ReadResult & result, size_t &
             stream = Stream(range.begin, range.end, current_task_last_mark, merge_tree_reader);
         }
 
-        bool last = i + 1 == size;
-        num_rows += stream.read(columns, rows_per_granule[i], !last);
+//        bool last = i + 1 == size;
+        num_rows += stream.read(columns, rows_per_granule[i], true);//!last);
     }
 
-    stream.skip(result.numRowsToSkipInLastGranule());
     num_rows += stream.finalize(columns);
 
     /// added_rows may be zero if all columns were read in prewhere and it's ok.
@@ -935,6 +935,8 @@ static void checkCombinedFiltersSize(size_t bytes_in_first_filter, size_t second
             "does not match second filter size ({})", bytes_in_first_filter, second_filter_size);
 }
 
+/// Second filter size must be equal to number of 1s in the first filter.
+/// The result size is equal to first filter size.
 static ColumnPtr combineFilters(ColumnPtr first, ColumnPtr second)
 {
     ConstantFilterDescription first_const_descr(*first);

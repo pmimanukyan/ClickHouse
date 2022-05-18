@@ -181,7 +181,6 @@ public:
 
         /// The number of rows were read at LAST iteration in chain. <= num_added_rows + num_filtered_rows.
         size_t totalRowsPerGranule() const { return total_rows_per_granule; }
-        size_t numRowsToSkipInLastGranule() const { return num_rows_to_skip_in_last_granule; }
         /// Filter you need to apply to newly-read columns in order to add them to block.
         const ColumnUInt8 * getFilterOriginal() const { return filter_original ? filter_original : filter; }
         const ColumnUInt8 * getFilter() const { return filter; }
@@ -209,7 +208,7 @@ public:
 
         size_t countBytesInResultFilter(const IColumn::Filter & filter);
 
-        bool need_filter = false;
+        bool need_filter = false; /// TODO: what exactly does it mean?
 
         Block block_before_prewhere;
 
@@ -223,8 +222,6 @@ public:
         size_t total_rows_per_granule = 0;
         /// The number of rows was read at first step. May be zero if no read columns present in part.
         size_t num_read_rows = 0;
-        /// The number of rows was removed from last granule after clear or optimize.
-        size_t num_rows_to_skip_in_last_granule = 0;
         /// Without any filtration.
         size_t num_bytes_read = 0;
         /// nullptr if prev reader hasn't prewhere_actions. Otherwise filter.size() >= total_rows_per_granule.
