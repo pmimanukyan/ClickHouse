@@ -32,7 +32,7 @@ elseif (ARCH_AARCH64)
     set (COMPILER_FLAGS "${COMPILER_FLAGS} -march=armv8-a+crc")
 
 elseif (ARCH_PPC64LE)
-    set (COMPILER_FLAGS "${COMPILER_FLAGS} -maltivec -mcpu=power8 -DNO_WARN_X86_INTRINSICS")
+    set (COMPILER_FLAGS "${COMPILER_FLAGS} -maltivec -mcpu=power8 -D__SSE2__=1 -DNO_WARN_X86_INTRINSICS")
 
 elseif (ARCH_AMD64)
     set (TEST_FLAG "-mssse3")
